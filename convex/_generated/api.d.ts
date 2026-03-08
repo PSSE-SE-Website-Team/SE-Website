@@ -11,7 +11,19 @@
 import type * as auth from "../auth.js";
 import type * as helpers_zod from "../helpers/zod.js";
 import type * as http from "../http.js";
+import type * as modules_posts_functions from "../modules/posts/functions.js";
+import type * as modules_posts_validators from "../modules/posts/validators.js";
+import type * as modules_rbac_functions from "../modules/rbac/functions.js";
+import type * as modules_todos_functions from "../modules/todos/functions.js";
+import type * as platform_auth from "../platform/auth.js";
+import type * as platform_rls from "../platform/rls.js";
+import type * as platform_triggers from "../platform/triggers.js";
+import type * as posts from "../posts.js";
 import type * as rbac from "../rbac.js";
+import type * as schema_auditLogs from "../schema/auditLogs.js";
+import type * as schema_posts from "../schema/posts.js";
+import type * as schema_todos from "../schema/todos.js";
+import type * as schema_userProfiles from "../schema/userProfiles.js";
 import type * as todos from "../todos.js";
 
 import type {
@@ -24,7 +36,19 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   "helpers/zod": typeof helpers_zod;
   http: typeof http;
+  "modules/posts/functions": typeof modules_posts_functions;
+  "modules/posts/validators": typeof modules_posts_validators;
+  "modules/rbac/functions": typeof modules_rbac_functions;
+  "modules/todos/functions": typeof modules_todos_functions;
+  "platform/auth": typeof platform_auth;
+  "platform/rls": typeof platform_rls;
+  "platform/triggers": typeof platform_triggers;
+  posts: typeof posts;
   rbac: typeof rbac;
+  "schema/auditLogs": typeof schema_auditLogs;
+  "schema/posts": typeof schema_posts;
+  "schema/todos": typeof schema_todos;
+  "schema/userProfiles": typeof schema_userProfiles;
   todos: typeof todos;
 }>;
 

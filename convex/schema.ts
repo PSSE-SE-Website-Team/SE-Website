@@ -1,18 +1,12 @@
-import { defineSchema, defineTable } from 'convex/server'
-import { v } from 'convex/values'
+import { defineSchema } from "convex/server";
+import { auditLogsTable } from "./schema/auditLogs";
+import { postsTable } from "./schema/posts";
+import { todosTable } from "./schema/todos";
+import { userProfilesTable } from "./schema/userProfiles";
 
 export default defineSchema({
-  todos: defineTable({
-    text: v.string(),
-    completed: v.boolean(),
-    description: v.optional(v.string())
-  }),
-  userProfiles: defineTable({
-    authUserId: v.string(),
-    role: v.union(
-      v.literal('student'),
-      v.literal('admin'),
-      v.literal('superadmin')
-    )
-  }).index('by_auth_user_id', ['authUserId'])
-})
+	todos: todosTable,
+	posts: postsTable,
+	auditLogs: auditLogsTable,
+	userProfiles: userProfilesTable,
+});
