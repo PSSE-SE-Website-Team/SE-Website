@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getAuthorization, requireAuthenticated } from "@/lib/authorization.ts";
+import { getAuthorization, requireAuthenticated } from "@/lib/authorization";
 
 export const Route = createFileRoute("/profile/")({
 	beforeLoad: ({ context }) => {

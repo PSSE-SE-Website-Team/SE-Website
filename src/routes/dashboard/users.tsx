@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getAuthorization, requireMinimumRole } from "@/lib/authorization.ts";
+import { getAuthorization, requireMinimumRole } from "@/lib/authorization";
 
 export const Route = createFileRoute("/dashboard/users")({
 	beforeLoad: ({ context }) => {

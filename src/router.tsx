@@ -12,9 +12,7 @@ export function getRouter() {
 	if (!CONVEX_URL) {
 		throw new Error("VITE_CONVEX_URL is not defined");
 	}
-	const convexQueryClient = new ConvexQueryClient(CONVEX_URL, {
-		expectAuth: true,
-	});
+	const convexQueryClient = new ConvexQueryClient(CONVEX_URL);
 
 	// create the router
 	const queryClient: QueryClient = new QueryClient({
