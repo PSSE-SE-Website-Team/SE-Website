@@ -1,434 +1,230 @@
-# AGENTS.md — SE-Website Coding Guidelines
+# AGENTS.md
 
-This file provides instructions for agentic coding agents (AI assistants) working in this repository.
+Guidance for coding agents working in `/Users/cxnner05/Documents/projects/SE-Website`.
+Use this file as the canonical repo-specific instruction set.
 
----
+## Rule Sources
 
-## Project Overview
+- No `.cursor/rules/` directory exists.
+- No `.cursorrules` file exists.
+- No `.github/copilot-instructions.md` file exists.
+- There are no extra Cursor/Copilot rules to merge; follow this file.
 
-A full-stack React app using:
+## Stack
 
-- **TanStack Start** (full-stack framework) + **TanStack Router** (file-based, type-safe)
-- **TanStack Query** (server state) + **TanStack Form** (form state)
-- **Convex** (serverless backend / real-time DB)
-- **React 19** with the React Compiler (auto-memoization via Babel plugin)
-- **Tailwind CSS v4** (zero-config, `@tailwindcss/vite` plugin)
-- **Biome** (linter + formatter — replaces ESLint and Prettier entirely)
-- **Vitest** + **@testing-library/react** (test runner)
+- TanStack Start + TanStack Router
+- React 19 + React Compiler
+- TanStack Query
+- TanStack Form
+- Convex + `@convex-dev/react-query`
+- Better Auth
+- Tailwind CSS v4
+- Biome
+- Vitest + Testing Library
 
----
-
-## Architecture Baseline (C4-Aligned)
-
-This section captures the current high-level architecture so implementation choices stay
-consistent across features.
-
-### System Context
-
-- **Primary users:** public visitors, PSSE SE students, alumni, officers, and faculty
-- **Primary system:** `PSSE Website` (public site + admin console)
-- **External integrations:** maps embeds, social embeds, auth provider, file storage/CDN, and app database
-- **Current default stack:** TanStack Start + Convex (DB/functions) + Convex/Auth-compatible auth flow
-- **Alternatives (if needed):** Supabase (Postgres/Auth/Storage) or Firebase (Auth/Firestore + UploadThing)
-
-### Container View
-
-- **Public Site container:** public pages, member-only views, reactions, RSVP, and content browsing
-- **Admin Console container:** role-gated CRUD for events, posts, merch, partners, sponsors, approvals
-- **Server Functions layer:** stable facade between UI and backend (`createServerFn`)
-- **Backend services:** domain data, auth checks, and file storage operations
-- **Rule:** UI never calls backend directly for protected operations; server functions are the source of truth
-
-### Component / Layering Pattern
-
-Use this architectural sequence for all features:
-
-1. UI layer (routes, pages, components)
-2. Query layer (`options.ts`, query keys/options, mutation options)
-3. Server layer (`createServerFn`, Zod validation, role checks, audit)
-4. Backend layer (Convex first; alternatives only when explicitly adopted)
-5. Storage/CDN layer (images/files)
-
-Canonical data flow:
-
-- **Read path:** backend -> server function -> route `beforeLoad`/`loader` -> `ensureQueryData` -> `useSuspenseQuery`
-- **Write path:** UI mutation -> server function validation/auth -> backend write -> query invalidation/refetch
-
-### Core Domain Modules
-
-- **Events:** listings, details, scheduling, publish/archive, attendance support
-- **Merch:** catalog, variants, stock/preorder visibility, order status (no payments yet)
-- **Partners & Sponsors:** directory entries, tiers, spotlight/featured content
-- **Posts:** announcements/updates with publish state, tags, media
-- **Reactions:** user reactions per post with anti-spam/rate-limit considerations
-- **Approvals & Roles:** organization access policy and admin role assignment
-
-### Authorization Model (Minimum)
-
-- Roles: `owner`, `staff`
-- Access checks are enforced in server functions (`requireUser`, `requireRole` pattern)
-- Route guards can redirect early, but never replace server-side authorization
-- Admin/editor access is restricted to approved Software Engineering students
-
----
-
-## Recommended Project Structure
-
-Prefer feature-based organization and keep server/query/schema code close to each feature.
+## Project Shape
 
 ```text
 src/
-  components/              # shared UI primitives and app-level layout/navigation
-  integrations/            # query client, form setup, convex client, auth adapters
-  lib/                     # utilities, constants, helpers
-  routes/                  # TanStack file-based routes
-    __root.tsx
-    home.tsx
-    events/
-      index.tsx
-      $eventId.tsx
-    posts/
-      index.tsx
-      $postSlug.tsx
-    merch/
-      index.tsx
-    partners/
-      index.tsx
-    sponsors/
-      index.tsx
-    admin/
-      index.tsx
-      events.tsx
-      posts.tsx
-      merch.tsx
-      partners.tsx
-      sponsors.tsx
-      approvals.tsx
-  features/
-    events/
-      components/
-      hooks/
-      options.ts
-      schemas/
-      server/
-    posts/
-      components/
-      hooks/
-      options.ts
-      schemas/
-      server/
-    merch/
-      components/
-      hooks/
-      options.ts
-      schemas/
-      server/
-    partners/
-      components/
-      hooks/
-      options.ts
-      schemas/
-      server/
-    sponsors/
-      components/
-      hooks/
-      options.ts
-      schemas/
-      server/
-    reactions/
-      hooks/
-      options.ts
-      schemas/
-      server/
-    auth/
-      hooks/
-      schemas/
-      server/
-    approvals/
-      components/
-      hooks/
-      options.ts
-      schemas/
-      server/
-  styles/                  # tokens/theme layers (optional but recommended)
-  types/                   # shared app types when not colocated (optional)
-  config/                  # env/config/feature flags (optional)
+  components/        shared UI primitives
+  feature/           feature code (note: singular `feature`)
+  integrations/      form/query/auth integration code
+  lib/               shared helpers
+  routes/            TanStack Router files
+  router.tsx         router + Convex Query setup
 
 convex/
-  schema.ts
-  events.ts
-  posts.ts
-  merch.ts
-  partners.ts
-  sponsors.ts
-  reactions.ts
-  approvals.ts
-  users.ts
-  _generated/             # auto-generated, never edit manually
+  schema.ts          root schema composer
+  schema/            per-table schema modules
+  todos.ts           public facade, keeps api.todos.* stable
+  posts.ts           public facade, keeps api.posts.* stable
+  rbac.ts            public facade, keeps api.rbac.* stable
+  modules/           domain function implementations
+  platform/          auth, RLS, triggers
+  _generated/        generated, never edit manually
 ```
 
-Structure conventions per feature:
+## Commands
 
-- `options.ts`: query keys, query options, mutation options
-- `hooks/`: thin wrappers around TanStack Query/TanStack Form usage or other custom hooks related to the feature
-- `components/`: feature UI only
-- `server/`: TanStack Start server functions (`createServerFn`)
-- `schemas/`: Zod DTOs and validation schemas
-- `types/`: feature-specific types (optional, prefer inline types where possible)
-
----
-
-## Build / Lint / Test Commands
+Use Bun consistently.
 
 ```bash
-# Development server (port 3000)
+# dev server
 bun run dev
-
-# Production build
+# production build
 bun run build
-
-# Preview production build
+# preview production build
 bun run preview
-
-# Run all tests (vitest run — single pass, no watch)
+# all tests
 bun run test
-
-# Run a single test file
+# single test file
 bunx vitest run src/path/to/file.test.tsx
-
-# Run tests matching a name pattern
-bunx vitest run -t "test name pattern"
-
-# Lint (Biome linter only)
+# single test by name
+bunx vitest run -t "test name"
+# tests in a folder
+bunx vitest run src/feature/todos
+# typecheck
+bunx tsc --noEmit
+# lint
 bun run lint
-
-# Format (Biome formatter only)
+# format
 bun run format
-
-# Check lint + format together (preferred before committing)
+# lint + format check
 bun run check
-
-# Auto-fix lint + format issues
+# apply Biome fixes
 bunx biome check --write .
-```
-
-> **No ESLint. No Prettier.** Biome is the sole linter and formatter. Never install or configure ESLint/Prettier.
-
----
-
-## Convex Backend Commands
-
-```bash
-# Start Convex dev server (syncs schema + functions, auto-generates types)
+# Convex dev / typegen
 bunx convex dev
-
-# Deploy Convex functions to production
-bunx convex deploy
+# one-off Convex codegen
+bunx convex codegen
 ```
 
-> **Never manually edit files in `convex/_generated/`** — they are auto-generated by `bunx convex dev`.  
-> **Never manually edit `src/routeTree.gen.ts`** — auto-generated by TanStack Router's Vite plugin.
+## Verification Expectations
 
----
+- Run `bunx tsc --noEmit` before finishing non-trivial changes.
+- Run `bun run check` when touching frontend/shared TS files if practical.
+- Run `bunx convex codegen` after changing Convex schema, public facades, or function signatures.
+- If you add tests, run the affected tests directly.
 
-## Code Style
+## Formatting
 
-### Formatting (Biome)
+- Biome is the only formatter/linter. Do not add ESLint or Prettier.
+- Tabs for indentation.
+- Double quotes for strings.
+- Let Biome organize imports.
+- `src/routeTree.gen.ts` and `src/styles.css` are excluded from Biome.
 
-- **Indentation: tabs** (not spaces)
-- **Quotes: double quotes** in JS/TS strings and JSX attributes
-- **Import organization:** Biome auto-sorts imports (`source.organizeImports` enabled); do not manually reorder
-- Biome applies to all files in `src/**/*`, `vite.config.ts`, `.vscode/**/*`
-- Excluded from Biome: `src/routeTree.gen.ts`, `src/styles.css`
+## TypeScript
 
-### TypeScript
+- `strict` mode is enabled.
+- `verbatimModuleSyntax` is enabled: use `import type` for type-only imports.
+- `noUnusedLocals` and `noUnusedParameters` are enabled.
+- Avoid `any`; prefer `unknown` or explicit types.
+- Prefer generated Convex types over handwritten duplicates.
 
-- **Strict mode** is enabled — `strict: true` in `tsconfig.json`
-- `noUnusedLocals` and `noUnusedParameters` are enforced — delete dead code
-- `verbatimModuleSyntax` is enabled — **use `import type` for all type-only imports**:
-  ```ts
-  import type { QueryClient } from "@tanstack/react-query";
-  import type { ReactNode } from "react";
-  import type { Id } from "../convex/_generated/dataModel";
-  ```
-- Prefer **inline prop types** over separate `type Props = {...}`:
-  ```ts
-  function MyComponent({ label }: { label: string; optional?: boolean }) { ... }
-  ```
-- Use **inline interfaces** for local context/config shapes:
-  ```ts
-  interface MyRouterContext {
-    queryClient: QueryClient;
-  }
-  ```
-- Avoid `any` — use `unknown` or proper generics. The one accepted exception is accessing
-  `(import.meta as any).env` for Vite env vars.
-- Use generic typed hooks where applicable: `useFieldContext<string>()`
+## Validation Strategy
 
-### Imports & Path Aliases
+- Use Zod as the primary business/domain validation layer.
+- Reuse Zod schemas for form validation, DTOs, server inputs, and other shared contracts.
+- Prefer `z.infer<typeof Schema>` for DTO and input types.
+- Keep Convex `v.*` as the persistence/schema layer for `defineTable(...)` and Convex-native IDs.
+- Do not try to replace Convex table schemas with Zod; use a hybrid approach instead.
+- If a shape is shared between frontend and backend, prefer defining it once in a domain validator module.
+- If a schema is purely UI-specific, keep it near the feature in `src/feature/*`.
+- If a schema is backend/domain-shared, keep it in `convex/modules/*/validators.ts`.
 
-Two path alias systems coexist — prefer the `#/` alias:
+## Imports and Aliases
 
-| Alias | Resolves To | Defined In                       |
-| ----- | ----------- | -------------------------------- |
-| `#/*` | `./src/*`   | `package.json` `"imports"` field |
-| `@/*` | `./src/*`   | `tsconfig.json` `"paths"`        |
+- Use `@/*` for `src/*` imports.
+- Use `#convex/*` for `convex/*` imports.
+- Do not introduce `#/*` imports for `src/*`.
+- Prefer direct file imports over barrels.
+  Example:
 
-- **Prefer `#/` for cross-directory imports** within `src/`:
-  ```ts
-  import { useAppForm } from "#/hooks/demo.form";
-  import Header from "#/components/Header";
-  ```
-- Use **relative imports** (`../`, `../../`) within closely related files (e.g., routes importing
-  from adjacent `integrations/` or `convex/_generated/`)
-- No barrel/index files — import from the direct file path
-- External packages first, then internal — Biome enforces this automatically
+```ts
+import type { Doc } from "#convex/_generated/dataModel";
+import { api } from "#convex/_generated/api";
+import { useAppForm } from "@/integrations/tanstack-form/form-hooks";
+```
 
----
+## Naming
 
-## Naming Conventions
+- Components: `PascalCase.tsx`
+- Hooks/utilities: `camelCase.ts`
+- Route export: always `Route`
+- Convex functions: named `camelCase` exports
+- Event handlers: `handle*`
+- Booleans: `is*`, `has*`, `can*`
 
-### Files
+## React / Frontend Conventions
 
-| Pattern               | Convention                                         | Examples                                  |
-| --------------------- | -------------------------------------------------- | ----------------------------------------- |
-| React components      | `PascalCase.tsx`                                   | `Header.tsx`                              |
-| Route files           | folder-based naming with kebab-case files          | `form/simple.tsx`, `tanstack-query.tsx`   |
-| Root route            | `__root.tsx`                                       | double-underscore TanStack convention     |
-| Hooks                 | `camelCase.ts`                                     | `form.ts`, `formContext.ts`               |
-| Integration providers | `camelCase.tsx`                                    | `provider.tsx`, `root-provider.tsx`       |
-| Demo/example files    | place under feature folders with descriptive names | `demo/FormComponents.tsx`                 |
-| Auto-generated        | excluded from linting                              | `routeTree.gen.ts`, `convex/_generated/*` |
+- Prefer named function components over top-level arrow components.
+- Keep route files thin; move reusable UI into `src/feature/`.
+- Use Tailwind utilities; do not add CSS Modules or styled-components.
+- Use TanStack Query for async state.
+- Use TanStack Form through the existing `useAppForm` wrapper.
+- `FieldWrapper` is internal only; do not register it as a field component.
+- `CalendarField` values are `Date | null`.
+- `ComboboxField` empty state is `null`, not `""`.
 
-### Functions & Variables
+## Routing
 
-- **React components:** named function declarations in PascalCase — `function MyComponent()`
-  (not arrow functions at the top level)
-- **Event handlers:** `handle` + verb + noun — `handleAddTodo`, `handleToggleTodo`
-- **Hooks:** `use` prefix — `useAppForm`, `useFieldContext`
-- **Factory functions:** `get` + noun — `getRouter()`, `getContext()`
-- **Convex functions:** `camelCase` named exports — `list`, `add`, `toggle`, `remove`
-- **Environment constants:** `SCREAMING_SNAKE_CASE` — `CONVEX_URL`
-- **Boolean state:** descriptive adjective — `isOpen`, `isLoading` (not `open`, `loading`)
-- **Count variables:** `nounCount` — `completedCount`, `totalCount`
-- **Route exports:** always named `Route` — `export const Route = createFileRoute('/')({...})`
+- Routes live in `src/routes/`.
+- Use folder-based routing, not dotted filenames.
+- `src/routeTree.gen.ts` is generated; never edit it manually.
+- `src/router.tsx` owns router creation and Convex Query client setup.
 
----
+## Authorization
 
-## Component Patterns
+- Frontend route guards are UX only.
+- Real authorization must happen in Convex backend code.
+- App roles are `student`, `admin`, and `superadmin`.
+- Frontend auth helpers live in `src/lib/authorization.ts`.
+- Backend auth/RLS helpers live in `convex/platform/auth.ts` and `convex/platform/rls.ts`.
+- Prefer `requireAuthenticated(...)` and `requireRole(...)` for backend enforcement.
 
-- One primary component per file; unexported helpers are allowed in the same file
-- Use **default exports** for layout/provider components, **named exports** for utilities/hooks
-- Components are defined as **named function declarations below** the route/export:
+## Convex Architecture
 
-  ```ts
-  export const Route = createFileRoute('/')({ component: App })
+- Keep public API facades at the Convex root: `todos.ts`, `posts.ts`, `rbac.ts`.
+- Put implementations in `convex/modules/*/functions.ts`.
+- Put shared Zod business/input schemas in `convex/modules/*/validators.ts` when they are backend/domain-facing.
+- Put shared backend infra in `convex/platform/*`.
+- Put per-table schema in `convex/schema/*` and compose them in `convex/schema.ts`.
+- Default RLS policy is deny-first; do not bypass it casually.
+- Trigger/audit behavior is centralized in `convex/platform/triggers.ts`.
 
-  function App() {
-    return <div>...</div>
-  }
-  ```
+## Convex Data / Storage
 
-- Use **`useCallback`** for event handlers that call async Convex mutations, with proper deps arrays
-- **No CSS Modules, no styled-components** — Tailwind v4 utility classes only
-- Complex gradients or dynamic styles that cannot be expressed in Tailwind may use `style={{}}`
-- Accessibility: add `aria-label` on icon-only buttons
+- Use `v` validators for schema definitions and Convex-native persistence constraints.
+- Prefer Zod-backed validators for shared function input contracts when the same shape is reused elsewhere.
+- Do not include `_id` or `_creationTime` in schema definitions.
+- Use ownership fields like `ownerAuthUserId` / `authorAuthUserId` for user-scoped records.
+- For uploads, generate upload URLs in mutations and store `Id<"_storage">` on documents.
+- If deleting a record with owned storage, handle storage cleanup too.
 
----
+## Zod Conventions
 
-## Routing (TanStack Router)
-
-- File-based routing under `src/routes/`. Every route file must export `Route`:
-  ```ts
-  export const Route = createFileRoute("/my-path")({ component: MyPage });
-  ```
-- Use **folder naming for route separation**, not dot notation in filenames:
-  - Prefer: `src/routes/form/simple.tsx`, `src/routes/form/address.tsx`
-  - Avoid: `src/routes/form.simple.tsx`, `src/routes/form.address.tsx`
-- Set `ssr: false` on routes that require client-only APIs (e.g., Convex):
-  ```ts
-  export const Route = createFileRoute("/demo/convex")({
-    ssr: false,
-    component: ConvexDemo,
-  });
-  ```
-- Use `activeProps` from TanStack Router's `<Link>` for active nav link styling
-- The router type is registered via `declare module '@tanstack/react-router'` in `src/router.tsx` —
-  do not duplicate this declaration
-
----
-
-## Convex Backend
-
-- **Schema** defined in `convex/schema.ts` using `defineSchema` + `defineTable`
-- Use `v` (from `convex/values`) for all argument validators:
-  `v.string()`, `v.number()`, `v.boolean()`, `v.id('tableName')`, `v.optional(v.string())`,
-  `v.union(...)`, `v.object({...})`, `v.array(...)`
-- System fields `_id` and `_creationTime` are auto-added — do not include in schema
-- Functions pattern:
-  ```ts
-  export const myFunction = query({
-    args: { id: v.id("todos") },
-    handler: async (ctx, args) => {
-      const item = await ctx.db.get(args.id);
-      if (!item) throw new Error("Item not found");
-      return item;
-    },
-  });
-  ```
-- DB operations: `ctx.db.query()`, `ctx.db.get()`, `ctx.db.insert()`, `ctx.db.patch()`, `ctx.db.delete()`
-- Throw `new Error(...)` for not-found or invalid-state cases in mutations
-- Import generated types from `convex/_generated/api` and `convex/_generated/dataModel`
-
----
-
-## State Management
-
-- **Server/async state:** TanStack Query (`useQuery`, `useMutation`, `useQueryClient`)
-- **Convex real-time data:** `useQuery` from `convex/react` or the `@convex-dev/react-query` bridge
-- **Forms:** TanStack Form with Zod schema validation
-  - Schema-level validation: `validators: { onBlur: zodSchema }`
-  - Field-level: `onBlur: ({ value }) => value ? undefined : 'Required'`
-  - Only show errors when field `isTouched`
-- **Local UI state:** `useState` — keep as close to usage as possible
-- **No Redux, no Zustand** — not in the stack
-
----
+- Schema names should be explicit: `CreatePostInputSchema`, `UpdateTodoInputSchema`, `RoleAssignmentSchema`.
+- Keep persistence-only fields out of user-facing form schemas unless the UI truly edits them.
+- Do not use raw Convex `Doc<...>` types as form models unless the document shape exactly matches the UI.
+- Prefer a thin mapping layer between Zod DTOs and stored Convex documents when the shapes differ.
+- Centralize reusable refinements/transforms in schema modules rather than duplicating ad hoc validation.
 
 ## Error Handling
 
-- Form field validators return `string` (error message) or `undefined` (valid)
-- Convex mutations: `throw new Error('Descriptive message')` for not-found / invalid state
-- Missing env variables: `console.error(...)` with a descriptive message
-- Loading states: Convex `useQuery` returns `undefined` while loading — always guard with `if (!data)`
-  before rendering lists; show a spinner (`animate-spin`) or skeleton during load
-- No global error boundaries are set up — consider adding one for production routes
-
----
+- Throw `new Error("...")` for forbidden, invalid-state, and not-found cases.
+- Use descriptive messages like `"Todo not found"`.
+- Guard null results before patch/delete operations.
+- Form validators should return a string or `undefined`.
+- Do not silently swallow backend failures.
 
 ## Testing
 
-- **Runner:** Vitest (`npm run test`)
-- **Utilities:** `@testing-library/react`, `@testing-library/dom`, `jsdom`
-- Test files: `*.test.ts` or `*.test.tsx` co-located with source files (or in a `__tests__/` folder)
-- Run a single test file: `npx vitest run src/path/to/component.test.tsx`
-- Run by name: `npx vitest run -t "description of test"`
-- No tests exist yet in the codebase — when adding tests, follow Testing Library best practices
-  (query by role/label, avoid implementation details)
-
----
+- No tests currently exist under `src/`.
+- When adding tests, prefer colocated `*.test.ts` / `*.test.tsx` files.
+- Use Testing Library queries by role/label/text instead of implementation details.
+- For a single file: `bunx vitest run <path>`.
+- For a single test name: `bunx vitest run -t "name"`.
 
 ## Environment Variables
 
-- Client-side env vars accessed from browser code must be prefixed with `VITE_`:
-  ```ts
-  const url = import.meta.env.VITE_CONVEX_URL;
-  ```
-- Server-only env vars must **not** use the `VITE_` prefix (keep secrets server-side):
-  ```bash
-  DATABASE_URL=...
-  API_SECRET=...
-  ```
-- Never access server-only env vars from client code; only read them in server/runtime contexts
-- Defined in `.env.local` (gitignored) — never commit secrets
-- Cast `import.meta` as `any` when TS complains about env access: `(import.meta as any).env`
+- Client-visible vars must use `VITE_`.
+- Server-only secrets must not use `VITE_`.
+- `VITE_CONVEX_URL` is required by the router setup.
+- `VITE_CONVEX_SITE_URL` is required by the Better Auth React Start integration.
+- `VITE_SITE_URL` is read by Convex Better Auth config and should match the app origin.
+- `CONVEX_DEPLOYMENT` is required for Convex tooling/local setup.
+- Never hardcode or commit secrets.
+
+## Generated / Do Not Edit
+
+- `convex/_generated/*`
+- `src/routeTree.gen.ts`
+
+## Practical Agent Rules
+
+- Match existing code patterns before introducing new abstractions.
+- Prefer small, surgical edits over broad rewrites.
+- Do not rename public Convex facades unless explicitly asked.
+- If Convex signatures change, regenerate codegen before finishing.
+- If repo conventions drift, update code and this file together.
