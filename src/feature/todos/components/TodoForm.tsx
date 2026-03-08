@@ -1,28 +1,26 @@
 import { useConvexMutation } from "@convex-dev/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "#convex/_generated/api";
-import type { Doc } from "#convex/_generated/dataModel";
 import { useAppForm } from "@/integrations/tanstack-form/form-hooks";
 
 const useCreateTodoForm = () => {
-	type TodoForm = Omit<
-		Doc<"todos">,
-		"_id" | "_createdAt" | "_updatedAt" | "_creationTime"
-	>;
+	type TodoFormValues = {
+		text: string;
+		description: string;
+	};
 
+	const convexMutationFn = useConvexMutation(api.todos.add);
 	const { mutateAsync: createTodo } = useMutation({
-		mutationFn: useConvexMutation(api.todos.add),
+		mutationFn: convexMutationFn,
 	});
 
-	const defaultValues: TodoForm = {
+	const defaultValues: TodoFormValues = {
 		text: "",
 		description: "",
-		completed: false,
 	};
 	const form = useAppForm({
 		defaultValues,
 		onSubmit: async ({ value }) => {
-			console.log(value);
 			await createTodo(value);
 		},
 	});
@@ -33,11 +31,13 @@ const useCreateTodoForm = () => {
 export default function TodoForm() {
 	const form = useCreateTodoForm();
 	return (
-		<form onSubmit={e => {
-      e.preventDefault()
-      e.stopPropagation()
-      form.handleSubmit()
-    }}>
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				form.handleSubmit();
+			}}
+		>
 			<form.AppField name="text">
 				{(field) => <field.TextField label="Text" />}
 			</form.AppField>
